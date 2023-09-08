@@ -1,0 +1,286 @@
+---
+title: "My Capstone Project"
+author: "Esther A. Strahl"
+date: "2023-08-30"
+output: html_document
+---
+
+# Objectives/Goals
+I have been tasked to figure out how annual members and casual riders utilize bicycles differently with the goal to persuade casual riders to become annual members.
+
+
+Note: there are six phases that guides Data analytic project: ask, prepare, process, analyze, share, and act.
+
+## The Ask Phase
+I should be able to establish how annual members and casual riders utilize Cyclistic bikes differently at the completion of this study, why casual riders might be interested in getting Cyclistic annual memberships, and how Cyclistic can use digital media to encourage casual riders to become members.
+
+## The Prepare Phase
+The datasets used for the project are 12 months(June 2022 - May 2023) of trip data records owned by Motivate International Inc, who has granted me a non-exclusive, royalty-free, limited, perpetual license to access, reproduce, analyze, copy, modify, distribute in my product or service, and use the Data for any lawful purpose.
+There are no problems with bias or trustworthiness with these datasets. They are Reliable, Original, Comprehensive, Current, and Cited.
+
+The first overall review of each of the 12 csv files was carried out in excel using the ISBLANK function and ALT HFDSK to check for missing values, It was discovered that some of the observations are missing, this will be addressed later with RStudio.. The data sets was imported into R using using the read.csv. Firstly, the tidyverse package was installed, it entails the essential dataframes needed for loading and cleaning the data sets for this project.  
+
+•	Import Data sets
+
+```{r}
+library(tidyverse)
+```
+
+
+
+
+```{r}
+may_2023 <- read.csv("202305-divvy-tripdata.csv")
+```
+
+```{r}
+april_2023 <- read.csv("202304-divvy-tripdata.csv")
+```
+
+```{r}
+march_2023 <- read.csv("202303-divvy-tripdata.csv")
+```
+
+```{r}
+febuary_2023 <- read.csv("202302-divvy-tripdata.csv")
+```
+
+```{r}
+january_2023 <- read.csv("202301-divvy-tripdata.csv")
+```
+
+```{r}
+december_2022 <- read.csv("202212-divvy-tripdata.csv")
+```
+
+```{r}
+november_2022 <- read.csv("202211-divvy-tripdata.csv")
+```
+
+```{r}
+october_2022 <- read.csv("202210-divvy-tripdata.csv")
+```
+
+```{r}
+september_2022 <- read.csv("202209-divvy-publictripdata.csv")
+```
+
+```{r}
+august_2022 <- read.csv("202208-divvy-tripdata.csv")
+```
+
+```{r}
+july_2022 <- read.csv("202207-divvy-tripdata.csv")
+```
+
+```{r}
+june_2022 <- read.csv("202206-divvy-tripdata.csv")
+```
+
+•	Data Merge
+The 12 datasets was binded into 1 dataframe using bind_row
+
+ 
+```{r}
+Merged_trips_data = bind_rows(may_2023, april_2023, march_2023, febuary_2023, january_2023, december_2022, november_2022, october_2022, september_2022, august_2022, july_2022, june_2022 )
+```
+
+lets take a glimpse on the merged dataset
+
+```{r}
+glimpse(Merged_trips_data)
+```
+
+
+The glimpse results illustrated that the combined rows are 5,829,030 and 13 columns
+
+## The Process Phase
+In this phase which entails data cleaning, some variables will be rename for the sake of more clarity and consistency.
+
+```{r}
+renamed_col_merged <- Merged_trips_data %>%
+  rename(start_time = started_at, end_time = ended_at, user_status = member_casual, bike_type = rideable_type)
+
+glimpse(renamed_col_merged)
+```
+
+
+A column will be added to determine the trip duration, which is the difference between start_time and end_time
+
+
+
+```{r}
+with_tripduration <- mutate(renamed_col_merged, tripduration= as.duration
+                            (interval(ymd_hms(renamed_col_merged$start_time),
+                                      ymd_hms(renamed_col_merged$end_time))))
+```
+
+
+To find out which day of the week the majority of users like riding, I'll create a new column with ride weekdays.
+
+```{r}
+with_week_day_merged <- with_tripduration %>% 
+  mutate(weekday=weekdays(as.Date(with_tripduration$start_time)))
+```
+
+
+There are some "bad" data to get rid of, especially  when tripduration has negative or null values due to the maintenance of removing the bike for quality check. To eliminate the negative duration trips, a new dataframe would be created.
+
+```{r}
+merged_data_cleaned  <- with_week_day_merged[!(with_week_day_merged$tripduration <= 0),]
+```
+About 567 rows of data were removed, which is assumed as "bad data"
+
+* Continuation of the data cleaning process, the unique fuction will be used to check for consistency
+
+```{r}
+unique(merged_data_cleaned$user_status)
+```
+
+
+```{r}
+unique(merged_data_cleaned$bike_type)
+```
+
+
+
+NULL and NA data will be checked and removed for cleanliness of data analysis
+
+
+```{r}
+is.null(merged_data_cleaned)
+```
+```{r}
+ cleaned_data_trip <- na.omit(merged_data_cleaned)
+```
+
+
+it is important to note that 5961 values were eliminated using the na.omit function, all of which is assumed to be negligible.
+
+
+## The Analyze and Share Phase
+
+The user count of member and casual
+
+```{r}
+user_count <- table(cleaned_data_trip$user_status)
+```
+
+
+
+
+```{r}
+plot(user_count)
+```
+
+
+```{r}
+pie(user_count)
+```
+
+
+* The analysis illustrated that there are more registered members than casual riders. The registered members total number equal 3515891, and the casual riders 2306611.
+
+
+
+In the next analysis, descriptive analysis will be determined first before proceeding to check for patterns between subscribed members and casual riders.
+
+
+
+Comparing the stats of subscribed members and casual riders.
+
+```{r}
+avg_trip_duration <- cleaned_data_trip %>% 
+  group_by(user_status) %>% 
+  summarize(avg = mean(tripduration)/60)
+
+glimpse(avg_trip_duration) 
+```
+
+The above analysis illustrates that casual riders ride longer at an average of 20.8 minutes/ride than subscribed members with an avaerage of 12.1 minutes/ride.
+
+
+The day_of_week will be arranged in an organized order.
+```{r}
+cleaned_data_trip$weekday <- ordered(cleaned_data_trip$weekday, levels=c("Sunday", "Monday", "Tuesday","Wednesday", "Thursday", "Friday", "Saturday"))
+```
+
+
+
+
+* The average trip duration time per day and the total number of trips for registered members and casual riders will be analyzed.
+
+```{r}
+Plot <- cleaned_data_trip %>%
+   group_by(user_status, weekday) %>%  #groups by user_status
+  summarise(number_of_rides = n() #calculates the number of rides and average tripduration 
+  ,average_tripduration = mean(tripduration),.groups="drop") %>% # calculates the average duration
+  arrange(user_status, weekday) #sort
+```
+
+
+
+Visuals will be constructed to share with stakeholders and give a better understanding of insights before making suggestions to the marketing department.
+
+```{r}
+ggplot(Plot, aes(x = weekday, y = number_of_rides, fill = user_status)) +
+  labs(title = "Total rides of members and casual riders vs Day of the week",
+caption = "Data analyzed by Esther Strahl")+
+  geom_col(width=0.5, position = position_dodge(width=0.5))+
+ scale_y_continuous(labels = function(x) format(x, scientific = FALSE))
+```
+
+
+
+The graph above illustrates that subscribed members rides more than casual riders during the week.
+
+
+```{r}
+ggplot(Plot,aes(x = weekday, y = average_tripduration, fill = user_status)) +
+  geom_col(width=0.5, position = position_dodge(width=0.5)) + 
+  labs(title ="Average ride time of Members and Casual riders Vs. Day of the week", caption = "Data analyzed by Esther Strahl")+
+  scale_y_continuous(labels = function(x) format(x, scientific = FALSE))
+```
+
+
+
+The above graph illustrate that casual riders cycled on average for a longer period than registered members and the longest ride is during the weekend. 
+
+
+To be able to extract data for months, the code below was run
+
+```{r}
+cleaned_data_trip$date <- as.Date(cleaned_data_trip$start_time) 
+cleaned_data_trip$month <- format(as.Date(cleaned_data_trip$date), "%m")
+cleaned_data_trip$year <- format(as.Date(cleaned_data_trip$date), "%Y")
+```
+
+Visualize month
+
+```{r}
+cleaned_data_trip %>%  
+  group_by(user_status, month) %>% 
+  summarise(number_of_rides = n(),.groups="drop") %>% 
+  arrange(user_status, month)  %>% 
+  ggplot(aes(x = month, y = number_of_rides, fill = user_status)) +
+  labs(title ="Total rides by Members and Casual riders by Month", caption = "Data analyzed by Esther Strahl") +
+  theme(axis.text.x = element_text(angle = 45)) +
+  geom_col(width=0.5, position = position_dodge(width=0.5)) +
+  scale_y_continuous(labels = function(x) format(x, scientific = FALSE))
+```
+
+
+
+
+The above graph illustrtates that casual members are more active in the month of june, july, august and september.
+
+## The Act Phase
+
+### Observation
+* The ride pattern of registered members is steady during the week, while casual riders are high on Saturday and Sunday.
+* On average, registered members ride shorter than casual riders.
+* While registered members  are active year-round, with the exception of the winter months, casual users are usually active in the summer months (June, July, August, September).
+
+### Reccomendations
+* Give membership deals/discount and weekend riding packages.
+* Provide members with special, discounted summertime packages.
